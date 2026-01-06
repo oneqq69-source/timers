@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pokémon Unite – Cooldown Trainer</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #1e1e2f;
+  color: #fff;
+  padding: 20px;
+}
+
+h1, h2 { margin: 0 0 10px 0; }
+
+#langSelect {
+  margin-bottom: 10px;
+  padding: 5px;
+  border-radius: 5px;
+  border: none;
+  background: #3f3f60;
+  color: #fff;
+}
+
+.tabs button {
+  padding: 8px 16px;
+  margin-right: 5px;
+  cursor: pointer;
+  background: #3f3f60;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+.tabs button:hover { background: #57578d; }
+.tab { display: none; }
+.tab.active { display: block; }
+
+.item {
+  background: #2a2a40;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.item img { width: 40px; margin-right: 10px; cursor: pointer; }
+
+.cooldown-bar-container {
+  flex: 1;
+  height: 18px;
+  background: #44445a;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0 10px;
+}
+
+.cooldown-bar {
+  height: 100%;
+  width: 100%;
+  background: #2ecc71;
+  transition: width 0.2s linear, background 0.2s linear;
+}
+
+#log, #questions {
+  background: #2a2a40;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.exam-box {
+  background: #2a2a40;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 420px;
+}
+
+.exam-box img { width: 60px; }
+
+.review { margin-top: 20px; }
+.review-item {
+  background: #2a2a40;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.correct { color: #2ecc71; }
+.incorrect { color: #e74c3c; }
+
+input {
+  width: 80px;
+  margin-top: 10px;
+  background: #3f3f60;
+  border: none;
+  color: #fff;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+button {
+  background: #3f3f60;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover { background: #57578d; }
+</style>
+</head>
+<body>
+
+<h1 id="title">Pokémon Unite</h1>
+<h2 id="subtitle">Cooldown Trainer</h2>
+
+<select id="langSelect" onchange="setLang(this.value)">
+  <option value="en">English</option>
+  <option value="es">Español</option>
+  <option value="pt">Português</option>
+</select>
+
+<div class="tabs">
+  <button onclick="openTab('practice')"><span id="btnPractice">Practice</span></button>
+  <button onclick="openTab('exam'); startExam();"><span id="btnExam">Exam</span></button>
+</div>
+
+<!-- ================= PRACTICE MODE ================= -->
+<div id="practice" class="tab active">
+  <h3 id="practiceTitle">Practice Mode</h3>
+  <span id="timeText">Time Remaining</span>: <span id="timer">10:00</span><br><br>
+  <button id="btnRestart" onclick="restartPractice()">Restart</button>
+  <button id="btnPause" onclick="togglePause()">Pause</button>
+  <button id="btnAdvance" onclick="advance30()">+30s</button>
+
+  <div id="items"></div>
+
+  <h4 id="logTitle">Log</h4>
+  <div id="log"></div>
+
+  <h4 id="questionsTitle">Practice Questions</h4>
+  <div id="questions"></div>
+</div>
+
+<!-- ================= EXAM MODE ================= -->
+<div id="exam" class="tab">
+  <h3 id="examTitle">Exam Mode</h3>
+
+  <div class="exam-box" id="examBox">
+    <div id="examQuestion"></div>
+    <input id="examInput" placeholder="MM:SS">
+    <br><br>
+    <button id="btnSubmitExam" onclick="submitExamAnswer()">Submit</button>
+  </div>
+
+  <div id="examResult" style="display:none;">
+    <h3 id="scoreText"></h3>
+    <div class="review" id="review"></div>
+    <button id="btnRetryExam" onclick="startExam()">Retry Exam</button>
+  </div>
+</div>
+
+<script>
+/* ================= LANGUAGES ================= */
+const LANG = {
+  en: {
+    title: "Pokémon Unite – Cooldown Trainer",
+    subtitle: "Cooldown Trainer",
+    practiceMode: "Practice Mode",
+    examMode: "Exam Mode",
+    timeRemaining: "Time Remaining",
+    restart: "Restart",
+    pause: "Pause",
+    advance: "+30s",
+    log: "Log",
+    questions: "Practice Questions",
+    questionText: "If you used",
+    questionAgain: "when will it be available again?",
+    submit: "Submit",
+    score: "Score",
+    usedAt: "Used at"
+  },
+  es: {
+    title: "Pokémon Unite – Entrenador de Cooldowns",
+    subtitle: "Entrenador de Cooldowns",
+    practiceMode: "Modo Práctica",
+    examMode: "Modo Examen",
+    timeRemaining: "Tiempo Restante",
+    restart: "Reiniciar",
+    pause: "Pausar",
+    advance: "+30s",
+    log: "Registro",
+    questions: "Preguntas de Práctica",
+    questionText: "Si usaste",
+    questionAgain: "¿cuándo estará disponible de nuevo?",
+    submit: "Enviar",
+    score: "Puntaje",
+    usedAt: "Usado a"
+  },
+  pt: {
+    title: "Pokémon Unite – Treinador de Cooldowns",
+    subtitle: "Treinador de Cooldowns",
+    practiceMode: "Modo Prática",
+    examMode: "Modo Exame",
+    timeRemaining: "Tempo Restante",
+    restart: "Reiniciar",
+    pause: "Pausar",
+    advance: "+30s",
+    log: "Registro",
+    questions: "Perguntas de Prática",
+    questionText: "Se você usou",
+    questionAgain: "quando estará disponível novamente?",
+    submit: "Enviar",
+    score: "Pontuação",
+    usedAt: "Usado em"
+  }
+};
+
+let currentLang = 'en';
+function setLang(lang){
+  currentLang = lang;
+  const l = LANG[lang];
+  document.getElementById('title').textContent = "Pokémon Unite";
+  document.getElementById('subtitle').textContent = l.subtitle;
+  document.getElementById('practiceTitle').textContent = l.practiceMode;
+  document.getElementById('examTitle').textContent = l.examMode;
+  document.getElementById('timeText').textContent = l.timeRemaining;
+  document.getElementById('btnRestart').textContent = l.restart;
+  document.getElementById('btnPause').textContent = l.pause;
+  document.getElementById('btnAdvance').textContent = l.advance;
+  document.getElementById('logTitle').textContent = l.log;
+  document.getElementById('questionsTitle').textContent = l.questions;
+  document.getElementById('btnSubmitExam').textContent = l.submit;
+  document.getElementById('btnPractice').textContent = l.practiceMode;
+  document.getElementById('btnExam').textContent = l.examMode;
+
+  // Update existing Practice Questions
+  practiceQuestions.forEach(q => updateQuestionText(q));
+  // Update Exam text if currently showing
+  if(index < exam.length) showExamQuestion();
+}
+
+/* ================= SHARED ================= */
+function openTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(tab).classList.add("active");
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2,"0")}`;
+}
+
+function toSeconds(t) {
+  const [m,s] = t.split(":").map(Number);
+  return m * 60 + s;
+}
+
+/* ================= ITEMS ================= */
+const ITEMS = [
+  { name:"X-Speed", cd:50, img:"https://d275t8dp8rxb42.cloudfront.net/items/battle/X+Speed.png" },
+  { name:"Eject Button", cd:80, img:"https://d275t8dp8rxb42.cloudfront.net/items/battle/Eject+Button.png" },
+  { name:"Full Heal", cd:60, img:"https://d275t8dp8rxb42.cloudfront.net/items/battle/Full+Heal.png" },
+  { name:"Focus Band", cd:80, img:"https://d275t8dp8rxb42.cloudfront.net/items/held/Focus+Band.png" }
+];
+
+/* ================= PRACTICE MODE ================= */
+const SIM_TIME = 600;
+let practiceItems = ITEMS.map(i => ({...i, next:0}));
+let practiceQuestions = [];
+let pTime = 0;
+let paused = false;
+let lastUpdate = Date.now();
+
+function renderPracticeItems() {
+  const itemsEl = document.getElementById("items");
+  itemsEl.innerHTML = "";
+  practiceItems.forEach(item => {
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `
+      <img src="${item.img}">
+      <b>${item.name}</b>
+      <div class="cooldown-bar-container">
+        <div class="cooldown-bar" id="bar-${item.name}"></div>
+      </div>
+      <span id="avail-${item.name}"></span>
+    `;
+    d.querySelector("img").onclick = () => usePracticeItem(item);
+    itemsEl.appendChild(d);
+  });
+}
+
+function updatePractice() {
+  if (!paused) {
+    const now = Date.now();
+    const delta = (now - lastUpdate) / 1000;
+    lastUpdate = now;
+    pTime = Math.min(pTime + delta, SIM_TIME);
+    document.getElementById("timer").textContent = formatTime(SIM_TIME - pTime);
+    updatePracticeItems();
+  } else lastUpdate = Date.now();
+  requestAnimationFrame(updatePractice);
+}
+
+function updatePracticeItems() {
+  practiceItems.forEach(i => {
+    const rem = Math.max(0, i.next - pTime);
+    const bar = document.getElementById(`bar-${i.name}`);
+    const av = document.getElementById(`avail-${i.name}`);
+    if (!bar || !av) return;
+    if (rem <= 0) {
+      bar.style.width = "100%";
+      bar.style.background = "#2ecc71";
+    } else {
+      const perc = ((i.cd - rem)/i.cd)*100;
+      bar.style.width = `${perc}%`;
+      bar.style.background = rem/i.cd > 0.5 ? "#e74c3c" : "#f39c12";
+    }
+    av.textContent = rem > 0 ? formatTime(rem) : "";
+  });
+}
+
+function usePracticeItem(item) {
+  if (pTime < item.next) return;
+  item.next = pTime + item.cd;
+
+  const remainingTime = SIM_TIME - pTime;
+  const usedTime = formatTime(remainingTime);
+  const correctTime = formatTime(Math.max(0, remainingTime - item.cd));
+
+  const qObj = {
+    id: `q${Date.now()}`,
+    itemName: item.name,
+    usedTime,
+    correctTime,
+    userAnswer: ""
+  };
+  practiceQuestions.push(qObj);
+  renderQuestion(qObj);
+}
+
+function renderQuestion(q) {
+  const qEl = document.getElementById("questions");
+  const l = LANG[currentLang];
+  const div = document.createElement("div");
+  div.id = q.id;
+  div.innerHTML = `
+    <p>${l.questionText} <b>${q.itemName}</b> a ${q.usedTime}, ${l.questionAgain}</p>
+    <input placeholder="MM:SS" id="${q.id}-input" value="${q.userAnswer}">
+    <button onclick="checkPracticeAnswer('${q.id}')">${l.submit}</button>
+    <span id="${q.id}-result"></span>
+  `;
+  qEl.appendChild(div);
+}
+
+function checkPracticeAnswer(qId){
+  const q = practiceQuestions.find(x=>x.id===qId);
+  const inputEl = document.getElementById(`${qId}-input`);
+  const resultEl = document.getElementById(`${qId}-result`);
+  q.userAnswer = inputEl.value;
+  if(q.userAnswer === q.correctTime){
+    resultEl.textContent = "✔ Correct!";
+    resultEl.className = "correct";
+  } else {
+    resultEl.textContent = `✘ Incorrect, ${q.correctTime}`;
+    resultEl.className = "incorrect";
+  }
+}
+
+function updateQuestionText(q){
+  const div = document.getElementById(q.id);
+  if(!div) return;
+  const l = LANG[currentLang];
+  div.querySelector("p").innerHTML = `${l.questionText} <b>${q.itemName}</b> a ${q.usedTime}, ${l.questionAgain}`;
+  div.querySelector("button").textContent = l.submit;
+  div.querySelector("input").value = q.userAnswer;
+}
+
+/* Buttons */
+function togglePause() { paused = !paused; }
+function advance30() { pTime = Math.min(pTime + 30, SIM_TIME); }
+function restartPractice() {
+  pTime = 0;
+  practiceItems.forEach(i => i.next = 0);
+  practiceQuestions = [];
+  document.getElementById("log").innerHTML = "";
+  document.getElementById("questions").innerHTML = "";
+  lastUpdate = Date.now();
+}
+
+/* ================= EXAM MODE ================= */
+let exam = [];
+let index = 0;
+
+function startExam() {
+  exam = [];
+  index = 0;
+  document.getElementById("examResult").style.display = "none";
+  document.getElementById("examBox").style.display = "block";
+
+  for (let i=0;i<10;i++) {
+    const item = ITEMS[Math.floor(Math.random()*ITEMS.length)];
+    const usedAt = Math.floor(Math.random()*SIM_TIME);
+    exam.push({ item, usedAt, correct: usedAt + item.cd, answer:null });
+  }
+  showExamQuestion();
+}
+
+function showExamQuestion() {
+  const q = exam[index];
+  const l = LANG[currentLang];
+  document.getElementById("examQuestion").innerHTML = `
+    <h4>Question ${index+1} / 10</h4>
+    <img src="${q.item.img}"><br>
+    <b>${q.item.name}</b><br><br>
+    ${l.usedAt}: ${formatTime(q.usedAt)}<br>
+    ${l.questionAgain}
+  `;
+  document.getElementById("examInput").value = "";
+  document.getElementById("examInput").focus();
+}
+
+function submitExamAnswer() {
+  const val = document.getElementById("examInput").value;
+  if(!val) return;
+  exam[index].answer = toSeconds(val);
+  index++;
+  if(index<10) showExamQuestion();
+  else finishExam();
+}
+
+function finishExam() {
+  document.getElementById("examBox").style.display = "none";
+  document.getElementById("examResult").style.display = "block";
+
+  let score = 0;
+  const rev = document.getElementById("review");
+  rev.innerHTML = "";
+  const l = LANG[currentLang];
+
+  exam.forEach((q,i)=>{
+    const ok = q.answer===q.correct;
+    if(ok) score++;
+    rev.innerHTML += `
+      <div class="review-item">
+        <b>${i+1}) ${q.item.name}</b><br>
+        ${l.usedAt}: ${formatTime(q.usedAt)}<br>
+        Your answer: ${formatTime(q.answer)}<br>
+        Correct: ${formatTime(q.correct)}
+        <span class="${ok?'correct':'incorrect'}">${ok?'✔':'✘'}</span>
+      </div>
+    `;
+  });
+
+  document.getElementById("scoreText").textContent = `${l.score}: ${score} / 10`;
+}
+
+/* ================= INITIALIZATION ================= */
+window.onload = () => {
+  renderPracticeItems();
+  requestAnimationFrame(updatePractice);
+  setLang('en');
+};
+</script>
+
+</body>
+</html>
